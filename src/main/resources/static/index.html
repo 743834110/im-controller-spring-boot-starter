@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>测试</title>
+    <script src="https://ajax.aspnetcdn.com/ajax/jquery/jquery-1.9.0.min.js"></script>
+</head>
+<body>
+    <form action="/rest/te" method="post">
+        <input name="dd" value="dd">55
+        <input type="submit" value="提交">
+    </form>
+</body>
+<script>
+    $(function () {
+        var person = {};
+        person.name="张三";
+        person.age = 15;
+        var personString = JSON.stringify(person);
+        console.log(personString)
+        $.ajax({
+            url: "/rest/te?name=zhangsan&age=15",
+            type: "GET",
+            dataType : 'json',
+            contentType : 'application/json'
+        })
+    })
+</script>
+</html>
