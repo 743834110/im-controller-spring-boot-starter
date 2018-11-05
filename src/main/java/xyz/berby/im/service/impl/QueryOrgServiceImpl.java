@@ -13,7 +13,7 @@ public class QueryOrgServiceImpl implements QueryOrgService {
     private Logger logger = LoggerFactory.getLogger(QueryOrgService.class);
 
     public void queryList(ReqBody<ServerConfig>[] reqBody) {
-        System.out.println(reqBody);
+        System.out.println(reqBody[0].getParam().getConfigId());
     }
 
     public void queryServerConfig(ServerConfig[] configs) {

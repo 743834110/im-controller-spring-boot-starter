@@ -5,6 +5,9 @@ import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.ClassUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
 import com.thoughtworks.paranamer.BytecodeReadingParanamer;
 import com.thoughtworks.paranamer.Paranamer;
 import org.springframework.util.ClassUtils;
@@ -56,16 +59,33 @@ public class ReflectUtil {
      * 获取json数据到入参字段的映射
      * @param paramType 方法入参类型
      * @param value 对应入参待定方法的值
+     * @param genericType  含泛型类型
      * @return object
      */
-    public static Object jsonForParam(Class<?> paramType, Object[] value) {
+    public static Object jsonForParam(Class<?> paramType, Object[] value, Type genericType) {
         String[] datas = Convert.convert(String[].class, value);
+
         // 数组对象时:[{}, {}, {}]
         if (paramType.isArray() && datas.length == 1 && datas[0].startsWith("[")) {
             Class<?> componentType = paramType.getComponentType();
             String data = datas[0];
-            List<?> list =  JSON.parseArray(data, componentType);
-            return Convert.convert(paramType, list);
+
+            // 无泛型处理
+            if (genericType == null) {
+                List<?> list = JSON.parseArray(data, paramType.getComponentType());
+                return Convert.convert(paramType, list);
+            }
+            // 含泛型处理
+            else {
+                JSONArray array = JSON.parseArray(data);
+                int size = array.size();
+                Object[] objects = new Object[size];
+                for (int i = 0; i < size; i++) {
+                    String s = array.getString(i);
+                    objects[i] = JSON.parseObject(s, genericType);
+                }
+                return Convert.convert(paramType, objects);
+            }
         }
         // 处理new String("{...}", "{...}")
         else if (paramType.isArray() && datas[0].startsWith("{")) {
@@ -73,7 +93,8 @@ public class ReflectUtil {
             Object[] objects = new Object[datas.length];
             for (int i = 0; i < datas.length; i++) {
                 String data = datas[i];
-                objects[i] = JSON.parseObject(data, componentType);
+                objects[i] = genericType == null?
+                        JSON.parseObject(data, componentType): JSON.parseObject(data, genericType);
             }
             return Convert.convert(paramType, objects);
         }
@@ -207,10 +228,12 @@ public class ReflectUtil {
      */
     public static Object[] getParamValues(Map<String, String[]> params, Method method) throws IllegalAccessException, InstantiationException, IntrospectionException, InvocationTargetException {
         Type[] types = method.getGenericParameterTypes();
+        Class<?>[] paramTypes = method.getParameterTypes();
         // 某字段泛型类型
         Class<?> genericType = null;
         // 此字段表明该字段是否为数组
         Class<?> componentType = null;
+        ParameterizedType temp = null;
 
         if (types.length == 0) {
             return null;
@@ -232,10 +255,11 @@ public class ReflectUtil {
                 componentType = null;
             }
             else if (type  instanceof GenericArrayType) {
-                ParameterizedType temp = ((ParameterizedType)((GenericArrayType) type).getGenericComponentType());
+                temp = ((ParameterizedType)((GenericArrayType) type).getGenericComponentType());
                 genericType = (Class<?>) temp.getActualTypeArguments()[0];
-                paramType = (Class<?>) temp.getRawType();
+                paramType = (Class<?>) paramTypes[i];
                 componentType = paramType.getComponentType();
+
             }
             else {
                 genericType = null;
@@ -260,7 +284,7 @@ public class ReflectUtil {
             // 其他类的处理，value存在时，此时客户端传送过来到的数据可能时json数据
            else if (value != null && value.length > 0) {
 
-               paramValues[i] = jsonForParam(paramType, value);
+               paramValues[i] = jsonForParam(paramType, value, temp);
             }
             // 其他类型处理
             // 实体类型映射:value为空时

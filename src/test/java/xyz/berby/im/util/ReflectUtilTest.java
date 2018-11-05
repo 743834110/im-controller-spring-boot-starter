@@ -35,7 +35,7 @@ public class ReflectUtilTest {
         ServerConfig[] configs = new ServerConfig[] {serverConfig};
         String string = JSON.toJSONString(configs);
         logger.info(string);
-        ServerConfig[] serverConfigs = (ServerConfig[]) ReflectUtil.jsonForParam(configs.getClass(), new String[]{string});
+        ServerConfig[] serverConfigs = (ServerConfig[]) ReflectUtil.jsonForParam(configs.getClass(), new String[]{string}, null);
         System.out.println(serverConfigs[0]);
     }
 
@@ -46,13 +46,13 @@ public class ReflectUtilTest {
           JSON.toJSONString(serverConfig()),
           JSON.toJSONString(serverConfig())
         };
-        ServerConfig[] serverConfigs = (ServerConfig[]) ReflectUtil.jsonForParam(ServerConfig[].class, strings);
+        ServerConfig[] serverConfigs = (ServerConfig[]) ReflectUtil.jsonForParam(ServerConfig[].class, strings, null);
     }
 
     @Test
     public void testJsonForParamThree() {
         ServerConfig serverConfig = (ServerConfig) ReflectUtil.jsonForParam(ServerConfig.class
-                , new String[] {JSON.toJSONString(serverConfig())});
+                , new String[] {JSON.toJSONString(serverConfig())}, null);
         System.out.println(serverConfig);
     }
 
@@ -98,13 +98,5 @@ public class ReflectUtilTest {
 
     @Test
     public void testDynamicNewInstance() {
-//        if (Object.class.isAssignableFrom(String.class)) {
-//            System.out.println("yes");
-//        }
-
-        Object a = 5;
-        if (a.getClass() == String.class) {
-            System.out.println("yes");
-        }
     }
 }

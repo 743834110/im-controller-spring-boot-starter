@@ -44,8 +44,9 @@ public class RestfulController extends AbstractRestfulController{
             , HttpServletRequest httpServletRequest
             , HttpServletResponse httpServletResponse, @RequestBody(required = false) String string) {
         httpServletResponse.setContentType("application/json; charset=utf-8");
-
+        long a = System.currentTimeMillis();
         Object body = super.getCommandDeal(service, operate, httpServletRequest, httpServletResponse, string);
+        System.out.println("耗时：" + (System.currentTimeMillis() - a) + "ms");
         return JSON.toJSONString(body);
     }
 
@@ -53,22 +54,28 @@ public class RestfulController extends AbstractRestfulController{
     Map<String, String[]> handleString(String string) {
         Map<String, String[]> map = new HashMap<>();
         JSONObject object = JSON.parseObject(string);
+        // 解析方式一：
         for (String key: object.keySet()) {
-            Object value = object.get(key);
-            // jsonArray类型处理
-            if (value instanceof JSONArray) {
-                JSONArray array = (JSONArray) value;
-                String[] strings = new String[array.size()];
-                for (int i = 0; i < strings.length; i++) {
-                    strings[i] = array.getString(i);
-                }
-                map.put(key, strings);
-            }
-            // JSONObject类型处理
-            else if (value instanceof JSONObject) {
-                map.put(key, new String[] {object.getString(key)});
-            }
+            map.put(key, new String[] {object.getString(key)});
         }
+
+        // 解析方式二：
+//        for (String key: object.keySet()) {
+//            Object value = object.get(key);
+//            // jsonArray类型处理
+//            if (value instanceof JSONArray) {
+//                JSONArray array = (JSONArray) value;
+//                String[] strings = new String[array.size()];
+//                for (int i = 0; i < strings.length; i++) {
+//                    strings[i] = array.getString(i);
+//                }
+//                map.put(key, strings);
+//            }
+//            // JSONObject类型处理
+//            else if (value instanceof JSONObject) {
+//                map.put(key, new String[] {object.getString(key)});
+//            }
+//        }
         return map;
     }
 

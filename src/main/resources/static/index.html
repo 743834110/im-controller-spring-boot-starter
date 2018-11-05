@@ -14,48 +14,62 @@
 <script>
     $(function () {
 
-        var reqBody = {
-            "reqBody": [
+        // var reqBody = {
+        //     "reqBody": [
+        //         {
+        //             param: {
+        //                 configId: 1,
+        //                 createTime: new Date()
+        //             },
+        //             serverConfig: {
+        //                 configId: 2,
+        //                 createTime: new Date()
+        //             }
+        //         },
+        //         {
+        //             param: {
+        //                 configId: 1,
+        //                 createTime: new Date()
+        //             },
+        //             serverConfig: {
+        //                 configId: 2,
+        //                 createTime: new Date()
+        //             }
+        //         },
+        //         {
+        //             param: {
+        //                 configId: 1,
+        //                 createTime: new Date()
+        //             },
+        //             serverConfig: {
+        //                 configId: 2,
+        //                 createTime: new Date()
+        //             }
+        //         }
+        //     ]
+        // };
+        // reqBody = JSON.stringify(reqBody);
+        // console.log(reqBody)
+
+        var configs = {
+            configs: [
                 {
-                    param: {
-                        configId: 1,
-                        createTime: new Date()
-                    },
-                    serverConfig: {
-                        configId: 2,
-                        createTime: new Date()
-                    }
+                    configId: 1,
+                    createTime: new Date()
                 },
                 {
-                    param: {
-                        configId: 1,
-                        createTime: new Date()
-                    },
-                    serverConfig: {
-                        configId: 2,
-                        createTime: new Date()
-                    }
-                },
-                {
-                    param: {
-                        configId: 1,
-                        createTime: new Date()
-                    },
-                    serverConfig: {
-                        configId: 2,
-                        createTime: new Date()
-                    }
+                    configId: 2,
+                    createTime: new Date()
                 }
             ]
-        };
-        reqBody = JSON.stringify(reqBody);
-        console.log(reqBody)
+        }
+        configs = JSON.stringify(configs);
         $.ajax({
-            url: "/rest/queryOrgService/queryList",
+            url: "/rest/queryOrgService/queryServerConfig",
             type: "POST",
             dataType : 'json',
             contentType : 'application/json',
-            data: reqBody,
+            data: configs,
             success: function (xhr, status, res) {
 
             }
