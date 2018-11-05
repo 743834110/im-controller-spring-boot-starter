@@ -14,10 +14,7 @@ import xyz.berby.im.vo.Pager;
 
 import java.beans.IntrospectionException;
 import java.beans.PropertyDescriptor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +22,17 @@ import java.util.TreeMap;
 
 import static com.alibaba.fastjson.JSON.parseArray;
 
+/**
+ * @author litianfeng
+ * Created on 2018/11/5
+ * 由于采用的数据结构不合理
+ * 先今只支持一层嵌套对象的数据映射
+ * 考虑到多层对象映射，应该采用树结构参数值模型
+ * 而且不支持重载（Mybatis也是这种情况）
+ * 原因为是在代码中是根据输入的字符串方法名来查找执行方法，而重载时同名的执行方法就有多中
+ * 暂时不支持数组类型的参数注入
+ *
+ */
 public class ReflectUtil {
 
 
@@ -87,9 +95,11 @@ public class ReflectUtil {
     public static Object dynamicNewInstance(Class<?> paramType, Class<?> genericType, Map<String, String[]> params) throws IllegalAccessException, InstantiationException, IntrospectionException, InvocationTargetException {
         Object target = paramType.newInstance();
         Object genericTarget = null;
-        Object concreteTarget = null;
-        Map<String, PropertyDescriptor> concreteDescriptorMap = null;
+        // 字段名称到对象映射类
+        Map<String, Object> concreteObjectMap = new HashMap<>();
+        // 泛型映射类
         Map<String, PropertyDescriptor> genericDescriptorMap = null;
+        // 表层映射类
         Map<String, PropertyDescriptor> descriptorMap =
                 BeanUtil.getPropertyDescriptorMap(paramType, false);
         // 泛型
@@ -103,16 +113,9 @@ public class ReflectUtil {
             String[] paramValue = entry.getValue();
             // 没有点的，注入基本类型
             int index = paramName.indexOf('.');
-            if (index == -1 && ClassUtil.isSimpleTypeOrArray(paramType)) {
+            if (index == -1 ) {
                 invokeMethodWithPropertyDescriptor(descriptorMap, paramName, target, paramValue);
             }
-            // 有点, 为泛型,如Pager<ServerConfig>
-            else if (genericTarget != null){
-                String latterFieldName = paramName.substring(index + 1);
-                invokeMethodWithPropertyDescriptor(genericDescriptorMap, latterFieldName, genericTarget, paramValue);
-            }
-            // 有点，不为泛型,如ServerConfig
-            // FIX-ME
             else {
                 String upperFieldName = paramName.substring(0, index);
                 String latterFieldName = paramName.substring(index + 1);
@@ -128,12 +131,42 @@ public class ReflectUtil {
                     throw new RuntimeException("参数不为1");
                 }
                 Class<?> clazz = clazzes[0];
-                Map<String, PropertyDescriptor> latterDescriptorMap =
-                        BeanUtil.getPropertyDescriptorMap(clazz, false);
+
+                // 有点,存在泛型, 且该前缀的类的类型为object
+                if (clazz.isAssignableFrom(Object.class) && genericTarget != null) {
+                    invokeMethodWithPropertyDescriptor(genericDescriptorMap, latterFieldName, genericTarget, paramValue);
+                    concreteObjectMap.put(upperFieldName, genericTarget);
+                }
+                // 有点，不为泛型,如ServerConfig，先满足一层实例的嵌套
+                // FIX-ME
+                else {
+
+                    Object concreteTarget = concreteObjectMap.get(upperFieldName);
+                    if (concreteTarget == null) {
+                        concreteTarget = clazz.newInstance();
+                        concreteObjectMap.put(upperFieldName, concreteTarget);
+                    }
+
+                    Map<String, PropertyDescriptor> latterDescriptorMap =
+                            BeanUtil.getPropertyDescriptorMap(clazz, false);
+
+                    invokeMethodWithPropertyDescriptor(latterDescriptorMap, latterFieldName, concreteTarget, paramValue);
+
+                }
 
 
             }
         }
+
+        // target字段对象注入
+        for (Map.Entry<String, Object> entry: concreteObjectMap.entrySet()) {
+            PropertyDescriptor propertyDescriptor = descriptorMap.get(entry.getKey());
+            Method method = propertyDescriptor.getWriteMethod();
+            method.setAccessible(true);
+            method.invoke(target, entry.getValue());
+
+        }
+
         return target;
     }
 
@@ -173,18 +206,20 @@ public class ReflectUtil {
      * @return
      */
     public static Object[] getParamValues(Map<String, String[]> params, Method method) throws IllegalAccessException, InstantiationException, IntrospectionException, InvocationTargetException {
-        Class<?>[] paramTypes = method.getParameterTypes();
         Type[] types = method.getGenericParameterTypes();
         // 某字段泛型类型
         Class<?> genericType = null;
+        // 此字段表明该字段是否为数组
+        Class<?> componentType = null;
 
-        if (paramTypes.length == 0) {
+        if (types.length == 0) {
             return null;
         }
 
-        Object[] paramValues = new Object[paramTypes.length];
+        Object[] paramValues = new Object[types.length];
         Paranamer paranamer = new BytecodeReadingParanamer();
         String[] parameterNames = paranamer.lookupParameterNames(method, false);
+
 
         for (int i = 0; types != null && i < types.length ; i++) {
 
@@ -194,17 +229,28 @@ public class ReflectUtil {
             if (type instanceof ParameterizedType) {
                 genericType = (Class<?>) ((ParameterizedType) type).getActualTypeArguments()[0];
                 paramType = (Class<?>) ((ParameterizedType) type).getRawType();
+                componentType = null;
+            }
+            else if (type  instanceof GenericArrayType) {
+                ParameterizedType temp = ((ParameterizedType)((GenericArrayType) type).getGenericComponentType());
+                genericType = (Class<?>) temp.getActualTypeArguments()[0];
+                paramType = (Class<?>) temp.getRawType();
+                componentType = paramType.getComponentType();
             }
             else {
                 genericType = null;
                 paramType = (Class<?>) type;
+                componentType = paramType.getComponentType();
             }
             // 从传输过来的map中获取对象方法字段中的值
             Object[] value = params.get(parameterNames[i]);
 
-            // 原始类型处理
-            if (ClassUtil.isSimpleTypeOrArray(paramType)
-                    || paramTypes[i].isAssignableFrom(MultipartFile.class)) {
+            // 当paramType为简单类型或者
+            // 它为数组的时候，它的基础类型为简单类型
+            // 或者它是默认注入类型是就执行符合该条件的语句
+            if (ClassUtil.isSimpleValueType(paramType)
+                    ||( componentType != null && ClassUtil.isSimpleValueType(componentType))
+                    || paramType.isAssignableFrom(MultipartFile.class)) {
 
                 if (value != null && value.length > 0) {
                     paramValues[i] = paramType.isArray()?
@@ -225,7 +271,7 @@ public class ReflectUtil {
             }
         }
 
-        return null;
+        return paramValues;
     }
 
 }

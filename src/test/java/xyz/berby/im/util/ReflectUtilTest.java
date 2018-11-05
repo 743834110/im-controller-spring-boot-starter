@@ -95,4 +95,16 @@ public class ReflectUtilTest {
             }
         }
     }
+
+    @Test
+    public void testDynamicNewInstance() {
+//        if (Object.class.isAssignableFrom(String.class)) {
+//            System.out.println("yes");
+//        }
+
+        Object a = 5;
+        if (a.getClass() == String.class) {
+            System.out.println("yes");
+        }
+    }
 }

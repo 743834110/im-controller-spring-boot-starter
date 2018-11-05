@@ -43,6 +43,14 @@ public class RespBody {
         }
     }
 
+    public RespBody(int code, String message, HttpServletResponse response) {
+        this.message = message;
+        this.code = code;
+        if (response != null) {
+            response.setStatus(this.code);
+        }
+    }
+
     public RespBody(int code, HttpServletResponse response) {
         this.code = code;
         if (response != null) {
@@ -66,11 +74,12 @@ public class RespBody {
         return message;
     }
 
-
-    public static void main(String[]  args) {
-
-        String string = JSON.toJSONString(new RespBody("", null));
-        System.out.println(string);
+    @Override
+    public String toString() {
+        return "RespBody{" +
+                "code=" + code +
+                ", message='" + message + '\'' +
+                ", data=" + data +
+                '}';
     }
-
 }
